@@ -1,0 +1,18 @@
+{
+  "tests": [
+    {
+      "name": "Get all teams",
+      "method": "GET",
+      "path": "/?action=teams",
+      "expectedStatus": 200,
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Get all participants",
+      "method": "GET",
+      "path": "/?action=participants",
+      "expectedStatus": 200,
+      "bodyMatcher": "partial"
+    }
+  ]
+}

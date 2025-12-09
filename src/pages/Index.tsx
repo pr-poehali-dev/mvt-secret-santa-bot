@@ -27,10 +27,7 @@ interface Team {
   createdAt: Date;
 }
 
-const generateCode = (): string => {
-  const randomNum = Math.floor(Math.random() * 900) + 100;
-  return `MVT${randomNum}`;
-};
+const API_URL = 'https://functions.poehali.dev/dc7f0091-f627-4132-a52d-d14043a2ad8f';
 
 const Snowflakes = () => {
   const snowflakes = Array.from({ length: 30 }, (_, i) => ({
@@ -70,81 +67,75 @@ const Index = () => {
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
 
   useEffect(() => {
-    const sampleTeam: Team = {
-      id: '1',
-      name: 'Команда Снежинок',
-      rules: 'Бюджет подарка: 1000-1500₽\nДата обмена: 31 декабря\nМесто встречи: уточняется',
-      codes: ['MVT123', 'MVT456', 'MVT789'],
-      participants: [],
-      createdAt: new Date(),
-    };
-    setTeams([sampleTeam]);
+    loadTeams();
+    loadParticipants();
   }, []);
 
-  const createTeam = () => {
-    if (!newTeamName.trim()) return;
-
-    const codes = Array.from({ length: participantCount }, () => generateCode());
-    
-    const newTeam: Team = {
-      id: Date.now().toString(),
-      name: newTeamName,
-      rules: newTeamRules || 'Условия игры не указаны',
-      codes,
-      participants: [],
-      createdAt: new Date(),
-    };
-
-    setTeams([...teams, newTeam]);
-    setNewTeamName('');
-    setNewTeamRules('');
-    setParticipantCount(5);
+  const loadTeams = async () => {
+    try {
+      const response = await fetch(`${API_URL}?action=teams`);
+      const data = await response.json();
+      setTeams(data);
+    } catch (error) {
+      console.error('Error loading teams:', error);
+    }
   };
 
-  const assignGifts = (teamId: string) => {
+  const loadParticipants = async () => {
+    try {
+      const response = await fetch(`${API_URL}?action=participants`);
+      const data = await response.json();
+      setParticipants(data);
+    } catch (error) {
+      console.error('Error loading participants:', error);
+    }
+  };
+
+  const createTeam = async () => {
+    if (!newTeamName.trim()) return;
+
+    try {
+      const response = await fetch(`${API_URL}?action=createTeam`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newTeamName,
+          rules: newTeamRules || 'Условия игры не указаны',
+          participantCount,
+        }),
+      });
+
+      if (response.ok) {
+        setNewTeamName('');
+        setNewTeamRules('');
+        setParticipantCount(5);
+        await loadTeams();
+      }
+    } catch (error) {
+      console.error('Error creating team:', error);
+    }
+  };
+
+  const assignGifts = async (teamId: string) => {
     const teamParticipants = participants.filter(p => p.teamId === teamId);
     if (teamParticipants.length < 2) return;
 
-    const shuffled = [...teamParticipants];
-    for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-    }
+    try {
+      const response = await fetch(`${API_URL}?action=assign`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ teamId }),
+      });
 
-    const updatedParticipants = participants.map(p => {
-      const index = teamParticipants.findIndex(tp => tp.id === p.id);
-      if (index !== -1) {
-        const nextIndex = (index + 1) % teamParticipants.length;
-        return { ...p, giftTo: shuffled[nextIndex].name };
+      if (response.ok) {
+        await loadParticipants();
       }
-      return p;
-    });
-
-    setParticipants(updatedParticipants);
+    } catch (error) {
+      console.error('Error assigning gifts:', error);
+    }
   };
 
-  const addParticipant = (name: string, code: string) => {
-    const team = teams.find(t => t.codes.includes(code));
-    if (!team) return false;
 
-    const newParticipant: Participant = {
-      id: Date.now().toString(),
-      name,
-      code,
-      teamId: team.id,
-    };
-
-    setParticipants([...participants, newParticipant]);
-    
-    const updatedTeams = teams.map(t => 
-      t.id === team.id 
-        ? { ...t, participants: [...t.participants, name] }
-        : t
-    );
-    setTeams(updatedTeams);
-    
-    return true;
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-red-50 via-green-50 to-red-50 relative overflow-hidden">
